@@ -9,7 +9,7 @@ import Layout from "./components/layout/Layout"
 import FolderPage from "./pages/FolderPage"
 import NotFoundPage from "./pages/NotFoundPage"
 import Login from "./pages/Login"
-import Signup from "./pages/Signup"
+import SignUp from "./pages/SignUp"
 import { useAuthStore } from "./store/useAuthStore"
 
 function ProtectedRoute({ children }) {
@@ -48,7 +48,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route path="/signup" element={<SignUp />} />
 
         {/* Protected Layout */}
         <Route  

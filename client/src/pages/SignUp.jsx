@@ -2,7 +2,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { useAuthStore } from "../store/useAuthStore";
 
-const Signup = () => {
+const SignUp = () => {
   const { register: signup, handleSubmit, formState: { errors } } = useForm();
   const { register, error, loading } = useAuthStore();
 
@@ -34,4 +34,4 @@ const Signup = () => {
   );
 };
 
-export default Signup;
+export default SignUp;
