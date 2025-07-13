@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum userRole {
+  ADMIN
+  USER
+}
+model User {
+  id String @id @default(uuid())
+  name String
+  sapId String @unique
+  password String
+  role     userRole @default(USER)
+  refreshToken  String?
+  forgetPasswordToken String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Category{
+   id String @id @default(uuid())
+   name String
+   parentId String?
+   parent Category? @relation("CategoryHierarchy", fields: [parentId], references: [id],onDelete: Cascade)
+   children Category[] @relation("CategoryHierarchy")
+   file  File[]
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+   
+}
+
+model File {
+  id            String     @id @default(uuid())
+  originalName  String
+  storedName    String
+  mimeType      String
+  size          String
+  path          String
+  uploadedAt    DateTime   @default(now())
+  categoryId    String
+  sapId         String?    @unique
+  description   String?
+  documentType  String?
+  tags          FileTag[]  
+  category      Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id           String   @id @default(uuid())
+  label        String
+  value        String   @unique
+
+  // Self-referencing One-to-Many
+  parentTagId  String?  
+  parent       Tag?     @relation("TagHierarchy", fields: [parentTagId], references: [id])
+  children     Tag[]    @relation("TagHierarchy")
+
+  files        FileTag[] // many-to-many via FileTag
+}
+
+
+model FileTag {
+  fileId        String
+  tagId         String
+
+  file          File     @relation(fields: [fileId], references: [id],onDelete: Cascade)
+  tag           Tag      @relation(fields: [tagId], references: [id],onDelete: Cascade)
+
+  @@id([fileId, tagId]) // Composite primary key to prevent duplicate tagging
+}
