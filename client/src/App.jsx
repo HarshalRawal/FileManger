@@ -10,6 +10,7 @@ import FolderPage from "./pages/FolderPage"
 import NotFoundPage from "./pages/NotFoundPage"
 import Login from "./pages/Login"
 import SignUp from "./pages/SignUp"
+import RootFolderPage from "./pages/RootFolderPage"
 import { useAuthStore } from "./store/useAuthStore"
 
 function ProtectedRoute({ children }) {
@@ -63,7 +64,7 @@ function App() {
           <Route index element={<Navigate to="/folders" replace />} />
 
           {/* Protected Routes */}
-          <Route path="folders" element={<FolderPage />} />
+          <Route path="folders" element={<RootFolderPage />} />
           <Route path="folders/:folderId" element={<FolderPage />} />
           <Route path="starred" element={<FolderPage view="starred" />} />
           <Route path="recent" element={<FolderPage view="recent" />} />

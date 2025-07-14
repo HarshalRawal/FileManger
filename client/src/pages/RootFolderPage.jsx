@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useNavigate, useLocation } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { useFileStore } from "@/store/fileStore"
 import { useViewStore } from "../store/viewStore"
 import Breadcrumbs from "../components/layout/Breadcrumbs"
@@ -14,76 +14,44 @@ import FileMetadataDialog from "../components/dialogs/FileMetadataDialog"
 import FilterPanel from "@/components/Filters/FilterPanel"
 import { Button } from "../components/ui/button"
 import { Badge } from "../components/ui/badge"
-import { Plus, Loader2, ArrowLeft, Filter, X } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu"
+import { Plus, Loader2, Filter, X } from "lucide-react"
 import { toast } from "sonner"
 import { useAuthStore } from "../store/useAuthStore"
 
-export default function FolderPage({ view = "default" }) {
-  const { folderId } = useParams()
+export default function RootFolderPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const authLoading = useAuthStore((state) => state.loading)
   const user = useAuthStore((state) => state.user)
 
   const {
     currentItems,
-    currentFolder,
     breadcrumbs,
-    searchQuery,
     filters,
+    searchQuery,
     isLoading,
     isFiltering,
-    getFolderContents,
+    getRootFolders,
     clearFilters,
   } = useFileStore()
 
   const { viewMode } = useViewStore()
+
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
   const [isFileUploadOpen, setIsFileUploadOpen] = useState(false)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [fileForMetadata, setFileForMetadata] = useState(null)
-  const [hasLoadedContent, setHasLoadedContent] = useState(false)
 
   useEffect(() => {
-    const loadContent = async () => {
-      if (authLoading || hasLoadedContent) return
-
-      const isValidFolderId =
-        folderId && folderId !== "undefined" && folderId !== "null" && folderId.trim() !== ""
-
-      if (isValidFolderId) {
-        const success = await getFolderContents(folderId)
-        if (!success) {
-          navigate("/folders")
-        } else {
-          setHasLoadedContent(true)
-        }
-      } else {
-        console.warn("[FOLDERPAGE] Invalid folderId, skipping load.")
-      }
+    if (!authLoading && user) {
+      getRootFolders()
     }
-
-    loadContent()
-  }, [authLoading, folderId, getFolderContents, navigate, hasLoadedContent])
-
-  useEffect(() => {
-    const isValid = folderId && folderId !== "undefined" && folderId !== "null" && folderId.trim() !== ""
-    if (isValid) {
-      setHasLoadedContent(false)
-    }
-  }, [folderId])
+  }, [authLoading, user, getRootFolders])
 
   const handleFileClick = (file) => {
     if (file.type === "folder") {
-      if (!file.id || file.id === "undefined" || file.id === "null") {
-        toast.error("Cannot open folder: Invalid folder ID")
+      if (!file.id) {
+        toast.error("Invalid folder ID")
         return
       }
       navigate(`/folders/${file.id}`)
@@ -94,20 +62,6 @@ export default function FolderPage({ view = "default" }) {
 
   const handleMetadataEdit = (file) => {
     setFileForMetadata(file)
-  }
-
-  const handleBackClick = () => {
-    if (!breadcrumbs || breadcrumbs.length <= 1) {
-      navigate("/folders")
-      return
-    }
-
-    const parent = breadcrumbs[breadcrumbs.length - 2]
-    if (!parent.id) {
-      navigate("/folders")
-    } else {
-      navigate(`/folders/${parent.id}`)
-    }
   }
 
   const handleClearFilters = () => {
@@ -156,9 +110,7 @@ export default function FolderPage({ view = "default" }) {
     return aType === "folder" ? -1 : 1
   })
 
-  const canGoBack = breadcrumbs && breadcrumbs.length > 1
-
-  if (authLoading || (!hasLoadedContent && isLoading)) {
+  if (authLoading || isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <Loader2 className="animate-spin h-8 w-8" />
@@ -171,18 +123,8 @@ export default function FolderPage({ view = "default" }) {
       <div className="flex-shrink-0 p-4 border-b bg-background">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {canGoBack && (
-              <Button variant="ghost" size="icon" onClick={handleBackClick} disabled={isLoading} className="mr-2">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            )}
             <div>
-              <h1 className="text-2xl font-bold">{currentFolder ? currentFolder.name : "My Drive"}</h1>
-              {currentFolder && (
-                <p className="text-sm text-muted-foreground">
-                  {currentFolder.noOfChildren || 0} folders, {currentFolder.noOfFiles || 0} files
-                </p>
-              )}
+              <h1 className="text-2xl font-bold">My Drive</h1>
             </div>
             {(isLoading || safeIsFiltering) && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
           </div>
@@ -203,18 +145,10 @@ export default function FolderPage({ view = "default" }) {
               )}
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" disabled={isLoading}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)}>New Folder</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setIsFileUploadOpen(true)}>File Upload</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button variant="outline" onClick={() => setIsCreateFolderOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New
+            </Button>
           </div>
         </div>
 
@@ -225,7 +159,7 @@ export default function FolderPage({ view = "default" }) {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Filters active:</span>
               <Badge variant="secondary" className="flex items-center gap-1">
-                {activeFilterCount} filter{activeFilterCount !== 1 ? "s" : ""}
+                {activeFilterCount}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -238,13 +172,6 @@ export default function FolderPage({ view = "default" }) {
             </div>
           )}
         </div>
-
-        {safeIsFiltering && (
-          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Applying filters...
-          </div>
-        )}
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -257,7 +184,18 @@ export default function FolderPage({ view = "default" }) {
             </div>
           ) : sortedItems.length === 0 ? (
             <div className="flex h-[50vh] flex-col items-center justify-center text-center">
-              <h3 className="mb-2 text-xl font-semibold">Empty folder</h3>
+              <div className="mb-4 rounded-full bg-muted p-6">
+                <svg className="h-10 w-10 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M5 8h14M5 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM19 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                  <path d="M19 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                  <path d="M12 16a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                  <path d="M5 16a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                  <path d="M5 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                  <path d="M12 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                  <path d="M19 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                </svg>
+              </div>
+              <h3 className="mb-2 text-xl font-semibold">No files or folders</h3>
               <p className="mb-4 text-muted-foreground">Create a new folder or upload files to get started.</p>
               <div className="flex gap-2">
                 <Button onClick={() => setIsCreateFolderOpen(true)}>Create Folder</Button>
@@ -279,7 +217,6 @@ export default function FolderPage({ view = "default" }) {
                   )}
                 </div>
               )}
-
               {viewMode === "grid" ? (
                 <FileGrid items={sortedItems} onFileClick={handleFileClick} onMetadataEdit={handleMetadataEdit} />
               ) : (
@@ -290,13 +227,12 @@ export default function FolderPage({ view = "default" }) {
         </div>
       </div>
 
-      {/* Dialogs */}
       <CreateFolderDialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen} />
       <FileUploadDialog
         open={isFileUploadOpen}
         onOpenChange={setIsFileUploadOpen}
         onMetadataEdit={handleMetadataEdit}
-        categoryId={folderId}
+        categoryId={null}
       />
       <FilterPanel open={isFilterOpen} onOpenChange={setIsFilterOpen} />
       {selectedFile && (

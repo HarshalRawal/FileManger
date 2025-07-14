@@ -5,26 +5,31 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Search, Grid, List, Moon, Sun, Bell, Settings, HelpCircle, X } from "lucide-react";
 import { useTheme } from "../Theme/Theme-Provider";
+import { useLocation } from "react-router-dom";
 
 export default function Header() {
   const { searchQuery, setSearchQuery, search, getRootFolders } = useFileStore();
   const { viewMode, setViewMode } = useViewStore();
   const { theme, setTheme } = useTheme();
   const [searchValue, setSearchValue] = useState(searchQuery);
+  const location = useLocation(); // ← NEW
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchQuery(searchValue);
 
       if (searchValue.trim() === "") {
-        getRootFolders(); // Reset to root folders if search is cleared
+        // ✅ Only reset to root folders if current route is exactly /folders
+        if (location.pathname === "/folders") {
+          getRootFolders();
+        }
       } else {
         search(searchValue.trim());
       }
-    }, 500); 
+    }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchValue, setSearchQuery, search, getRootFolders]);
+  }, [searchValue, setSearchQuery, search, getRootFolders, location.pathname]);
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background px-4">

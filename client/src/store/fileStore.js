@@ -1,7 +1,6 @@
 import { create } from "zustand"
 import { axiosInstance } from "@/lib/axios"
 import { toast } from "sonner"
-import { da } from "date-fns/locale";
 
 export const useFileStore = create((set, get) => ({
   rootTags:[],
@@ -82,6 +81,8 @@ export const useFileStore = create((set, get) => ({
   getRootFolders: async () => {
     try {
       set({ isLoading: true })
+      console.log("🕵️‍♂️ getRootFolders() called")
+      console.trace("Stack trace for getRootFolders")
       const res = await axiosInstance.get("/category/get-root-category")
       console.log("Root folders response:", res.data)
 
@@ -280,6 +281,7 @@ export const useFileStore = create((set, get) => ({
 
     if (parentBreadcrumb.id === null) {
       // Going back to root
+      console.log("Going back to root !!! hi ")
       await get().getRootFolders()
     } else {
       // Going back to parent folder
@@ -559,15 +561,6 @@ export const useFileStore = create((set, get) => ({
       return false
     } finally {
       set({ isLoading: false })
-    }
-  },
-
-  refreshCurrentFolder: async () => {
-    const state = get()
-    if (state.currentFolder) {
-      await get().getFolderContents(state.currentFolder.id)
-    } else {
-      await get().getRootFolders()
     }
   },
 
