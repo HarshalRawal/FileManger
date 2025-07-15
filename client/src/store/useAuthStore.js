@@ -29,7 +29,7 @@ export const useAuthStore = create((set) => ({
   // ✅ Signup and fetch user immediately
   signup: async (userData) => {
     try {
-      await axiosInstance.post('/api/signup', userData, { withCredentials: true })
+      await axiosInstance.post('/auth/register', userData, { withCredentials: true })
       await useAuthStore.getState().fetchUser()
       return { success: true }
     } catch (err) {
