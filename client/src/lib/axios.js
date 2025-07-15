@@ -1,12 +1,11 @@
-import axios from "axios"
-
-// Create axios instance with base URL
+import axios from "axios";
 export const axiosInstance = axios.create({
-  baseURL:  "https://d4822f116923.ngrok-free.app/api/v1",
+  baseURL: "https://dd0ea2faa0c8.ngrok-free.app/api/v1",
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true
+  withCredentials: true,
 });
+
 
