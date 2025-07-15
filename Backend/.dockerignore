@@ -1,0 +1,26 @@
+# Node modules and dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Env files
+.env
+.env.local
+
+# OS-specific junk
+.DS_Store
+Thumbs.db
+
+# Git and VCS
+.git
+.gitignore
+
+# Docker files (only if not needed in container)
+Dockerfile
+docker-compose.yml
+
+# IDE/editor config
+.vscode
+.idea
+*.swp

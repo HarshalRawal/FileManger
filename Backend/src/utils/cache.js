@@ -72,26 +72,54 @@ export const deleteCategoryAndCleanCache = async (categoryId) => {
   };
 
 
-export const updateCacheFile = async(categoryId,fileId,file)=>{
-  const key =  `category:${categoryId}`;
-  const data = await redis.get(key);
-  if(!data){
-    return
-  }
-  const parsedData = JSON.parse(data);
-  const cacheFile = parsedData.CategoryData.file.map((f)=>{
-    if(f.id!==fileId){
-      return f;
+  export const updateCacheFile = async (categoryId, fileId, file) => {
+    const key = `category:${categoryId}`;
+    const data = await redis.get(key);
+  
+    if (!data) {
+      return;
     }
-    else{
-       f.originalName = file.originalName,
-       f.description = file.description
-       return f;
-    }
-  })
-  parsedData.CategoryData.file = cacheFile;
-  await redis.set(key,JSON.stringify(parsedData),"EX",3600);
+  
+    const parsedData = JSON.parse(data);
+    const cacheFile = parsedData.CategoryData.file.map((f) => {
+      if (f.id !== fileId) {
+        return f;
+      } else {
+        f.originalName = file.originalName;
+        f.description = file.description;
+        return f;
+      }
+    });
+  
+    parsedData.CategoryData.file = cacheFile;
+  
+    await redis.set(key, JSON.stringify(parsedData), "EX", 3600);
+  };
+
+ export  const updateCacheCategory = async(cacheKey,newName)=>{
+        const data = await redis.get(cacheKey);
+        if(!data){
+          return;
+        }
+        const parsedData = JSON.parse(data);
+        parsedData.CategoryData.name = newName;
+        await redis.set(cacheKey, JSON.stringify(parsedData), "EX", 3600);
 }
+
+export const clearAllCategoryCache = async () => {
+  const categoryKeys = await redis.keys('category:*');
+  const rootKeys = await redis.keys('rootCategories:*');
+
+  const allKeys = [...categoryKeys, ...rootKeys];
+
+  if (allKeys.length > 0) {
+    await redis.del(...allKeys);
+    console.log(`🧹 Deleted ${allKeys.length} category cache keys`);
+  } else {
+    console.log('ℹ️ No category cache keys found');
+  }
+};
+  
   
   
   

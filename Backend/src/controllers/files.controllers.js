@@ -32,7 +32,7 @@ export const fileUpload = asyncHandler(async (req, res) => {
   }
 
   const relativePath = await getCategoryPath(categoryId);
-  const uploadDir = path.resolve("/Users/harshalrawal/Desktop/Uploads", relativePath);
+  const uploadDir = path.resolve("public/uploads", relativePath);
 
   await fs.mkdir(uploadDir, { recursive: true });
 
@@ -290,6 +290,7 @@ export const update = asyncHandler(async(req,res)=>{
    if(!newFile){
     throw new ApiError(500,"Error updating the file")
    }
+   console.log(`ID ${newFile.categoryId}`);
    await updateCacheFile(newFile.categoryId,id,newFile);
    return res.status(200).json(new ApiResponse(200,`Successfully updated File detail`,{
     newFile

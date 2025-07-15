@@ -4,9 +4,10 @@ import { ApiResponse } from "../utils/api-response.js";
 import { getCategoryPath } from "../utils/getCategoryPath.js";
 import { redis ,cacheRootCategory,cacheCategory,deleteCategoryAndCleanCache} from "../utils/cache.js";
 import prisma from "../db/index.js";
-import fs from "fs";
+import fs from "fs/promises";
 import path from "path";
-import { renameFolderInDisk } from "../utils/renameFolder.js";
+import { updateCacheCategory } from "../utils/cache.js";
+import { clearAllCategoryCache } from "../utils/cache.js";
 export const createCategory = asyncHandler(async(req,res)=>{
     const { name, parentId } = req.body;
     // todo also check if the current user is ADMIN or Not/
@@ -129,7 +130,7 @@ export const getCategory = asyncHandler(async(req,res)=>{
 
 export const renameCategory = asyncHandler(async(req,res)=>{
     const {id,newName} = req.body;
-
+    const basePath = '"public/uploads"';
     const existingParent = await prisma.category.findUnique({
         where:{
             id
@@ -138,8 +139,9 @@ export const renameCategory = asyncHandler(async(req,res)=>{
 
     if(!existingParent){
         throw new ApiError(404,`Category with id ${id} does not exists`)
-    }
-
+    } 
+     const oldCategory = await getCategoryPath(id);
+     console.log(oldCategory);
     const updatedCategory = await prisma.category.update({
         where:{
             id
@@ -152,7 +154,37 @@ export const renameCategory = asyncHandler(async(req,res)=>{
             name:true
         }
     })
-    await renameFolderInDisk(id);
+    const newCategory = await getCategoryPath(id);
+    const oldFolderPath = path.join(basePath,oldCategory);
+    const newFolderPath = path.join(basePath,newCategory);
+    console.log("old:",oldFolderPath);
+    console.log("new:",newFolderPath);
+    try {
+        await fs.rename(oldFolderPath, newFolderPath);
+      } catch (err) {
+        console.error("Error renaming folder on disk:", err);
+        throw new ApiError(500, "Failed to rename folder on disk");
+      }
+    const fileToUpdate = await prisma.file.findMany({
+        where:{
+            path :{
+                contains : oldCategory
+            }
+        }
+    })
+     await clearAllCategoryCache();
+    for (const file of fileToUpdate){
+       const updatedPath = file.path.replace(oldCategory,newCategory);
+       await prisma.file.update({
+        where :{
+            id : file.id,
+        },
+        data :{
+            path : updatedPath
+        }
+       })
+    }
+    
     return res.status(200).json(new ApiResponse(200,`SuccessFully Renamed the Category`,{
         updatedCategory
     }))
@@ -215,7 +247,10 @@ export const deleteCategory = asyncHandler(async(req,res)=>{
         throw new ApiError(500,"Failed to delete folder");
     }
     console.log("PATH",path);
-    const absolutePath = path.join('/Users/harshalrawal/Desktop/Uploads/',relativePath);
+    // "public/uploads"
+    ///Users/harshalrawal/Desktop/Uploads/
+    const absolutePath = path.join('public/uploads',relativePath);
+    // const absolutePath = path.join('public/uploads',relativePath);
     fs.rm(absolutePath, { recursive: true, force: true }, (err) => {
         if (err) {
           console.error(`Failed to remove folder: ${err.message}`);
