@@ -1,11 +1,14 @@
 import axios from "axios";
+
+// ✅ Secure, custom domain
 export const axiosInstance = axios.create({
-  baseURL: "https://dd0ea2faa0c8.ngrok-free.app/api/v1",
+  baseURL: "https://filemanager.harshal.app/api/v1",
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true,
+  withCredentials: true // Required if using cookies for auth
 });
+
 
 

@@ -17,7 +17,7 @@ app.use(cors({
     credentials : true
 }))
 app.get("/",(req,res)=>{
-    res.send(hi);
+    res.send("hi from server");
 })
 app.use("/api/v1/auth",authRouter);
 app.use("/api/v1/category",categoryRouter);
