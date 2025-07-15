@@ -32,8 +32,8 @@ export const fileUpload = asyncHandler(async (req, res) => {
   }
 
   const relativePath = await getCategoryPath(categoryId);
-  const uploadDir = path.resolve("/Users/harshalrawal/Desktop/Uploads", relativePath);
-  // const uploadDir = path.resolve("public/uploads", relativePath);
+  //const uploadDir = path.resolve("/Users/harshalrawal/Desktop/Uploads", relativePath);
+   const uploadDir = path.resolve("public/uploads", relativePath);
   await fs.mkdir(uploadDir, { recursive: true });
 
   const savedFiles = [];
