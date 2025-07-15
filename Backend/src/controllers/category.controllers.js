@@ -130,7 +130,8 @@ export const getCategory = asyncHandler(async(req,res)=>{
 
 export const renameCategory = asyncHandler(async(req,res)=>{
     const {id,newName} = req.body;
-    const basePath = '"public/uploads"';
+    const basePath = '/Users/harshalrawal/Desktop/Uploads/';
+    // const basePath = path.resolve("public/uploads");
     const existingParent = await prisma.category.findUnique({
         where:{
             id
@@ -247,10 +248,8 @@ export const deleteCategory = asyncHandler(async(req,res)=>{
         throw new ApiError(500,"Failed to delete folder");
     }
     console.log("PATH",path);
-    // "public/uploads"
-    ///Users/harshalrawal/Desktop/Uploads/
-    const absolutePath = path.join('public/uploads',relativePath);
-    // const absolutePath = path.join('public/uploads',relativePath);
+    const absolutePath = path.join('/Users/harshalrawal/Desktop/Uploads/',relativePath);
+    // const absolutePath = path.resolve("public/uploads", relativePath);
     fs.rm(absolutePath, { recursive: true, force: true }, (err) => {
         if (err) {
           console.error(`Failed to remove folder: ${err.message}`);
