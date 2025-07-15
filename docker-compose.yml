@@ -23,7 +23,7 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ./Backend
     container_name: filemanager-backend
     restart: always
     ports:
@@ -34,7 +34,7 @@ services:
       - postgres
       - redis
     volumes:
-      - ./backend/public/uploads:/app/public/uploads  # for file storage, optional
+      - ./Backend/public/uploads:/app/public/uploads  # for file storage, optional
 
 volumes:
   pgdata:
