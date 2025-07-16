@@ -180,7 +180,7 @@ export const fileUpload = asyncHandler(async (req, res) => {
           storedName,
           mimeType: file.mimetype || "application/octet-stream",
           size: String(file.size),
-          path: fullPath,
+          path: path.join("public/uploads",relativePath,storedName),
           categoryId,
           description: meta.description || null,
           tags: {
