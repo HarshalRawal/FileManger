@@ -14,14 +14,15 @@ export default function FilePreviewDialog({ file, open, onOpenChange }) {
 
   // Construct proper API URLs for file serving
   const getFileServeUrl = (fileId) => {
-    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:4000/api/v1"
+    const baseUrl = "https://filemanager.harshal.app/api/v1"
     return `${baseUrl}/files/serve/${fileId}`
   }
-
+  
   const getDownloadUrl = (fileId) => {
-    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:4000/api/v1"
+    const baseUrl = "https://filemanager.harshal.app/api/v1"
     return `${baseUrl}/files/download/${fileId}`
   }
+  
 
   const renderPreview = () => {
     const serveUrl = getFileServeUrl(file.id)
