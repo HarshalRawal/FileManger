@@ -235,9 +235,6 @@ export const fileUpload = asyncHandler(async (req, res) => {
   }
 });
 
-
-
-
 export const serve = asyncHandler(async (req, res) => {
   const { fileId } = req.params;
 
@@ -250,13 +247,36 @@ export const serve = asyncHandler(async (req, res) => {
     throw new ApiError(404, `File with ID ${fileId} not found`);
   }
 
-  // Security: Ensure the file path is within the uploads directory
-  if (!file.path.startsWith(BASE_UPLOAD_DIR)) {
+  const absolutePath = path.resolve(file.path);
+
+  // Ensure the file is within the uploads directory
+  if (!absolutePath.startsWith(BASE_UPLOAD_DIR)) {
     throw new ApiError(400, "Invalid file path");
   }
 
-  return res.sendFile(file.path);
+  return res.sendFile(absolutePath);
 });
+
+
+// export const serve = asyncHandler(async (req, res) => {
+//   const { fileId } = req.params;
+
+//   const file = await prisma.file.findUnique({
+//     where: { id: fileId },
+//     select: { path: true },
+//   });
+
+//   if (!file) {
+//     throw new ApiError(404, `File with ID ${fileId} not found`);
+//   }
+
+//   // Security: Ensure the file path is within the uploads directory
+//   if (!file.path.startsWith(BASE_UPLOAD_DIR)) {
+//     throw new ApiError(400, "Invalid file path");
+//   }
+
+//   return res.sendFile(file.path);
+// });
 
 // export const download  = asyncHandler(async(req,res)=>{
 //   const {fileId} = req.params;
@@ -281,9 +301,7 @@ export const serve = asyncHandler(async (req, res) => {
 export const download = asyncHandler(async (req, res) => {
   const { fileId } = req.params;
 
-  if (!fileId) {
-    throw new ApiError(400, "File ID is required");
-  }
+  if (!fileId) throw new ApiError(400, "File ID is required");
 
   const file = await prisma.file.findUnique({
     where: { id: fileId },
@@ -293,51 +311,110 @@ export const download = asyncHandler(async (req, res) => {
     },
   });
 
+  if (!file) throw new ApiError(404, `File with ID ${fileId} not found`);
+
+  const absoluteBase = path.resolve(BASE_UPLOAD_DIR);
+  const absolutePath = path.resolve(file.path);
+
+  if (!absolutePath.startsWith(absoluteBase)) {
+    throw new ApiError(400, "Invalid file path access attempt.");
+  }
+
+  try {
+    await fs.access(absolutePath);
+    return res.download(absolutePath, file.originalName);
+  } catch (err) {
+    throw new ApiError(404, "File not found on disk.");
+  }
+});
+
+// export const deleteFiles = asyncHandler(async(req,res)=>{
+//   const {fileId} = await req.params;
+//   if(!fileId){
+//     throw new ApiError(400,`file Id is required`);
+//   }
+//   const file = await prisma.file.findUnique({
+//     where:{
+//       id:fileId
+//     },
+//   })
+//   if(!file){
+//     throw new ApiError(404,`File with id ${fileId} not found`);
+//   }
+//   const deletedFile = await prisma.file.delete({
+//     where:{
+//       id:fileId
+//     }
+//   })
+//   const key = `category:${deletedFile.categoryId}`
+//   const data = await redis.get(key);
+//   if(data){
+//     const parsedData = JSON.parse(data);
+//     parsedData.noOfFiles = parsedData.noOfFiles - 1;
+//     const newFile = parsedData.CategoryData.file.filter((f)=>f.id!==fileId);
+//     parsedData.CategoryData.file = newFile;
+//     await redis.set(key,JSON.stringify(parsedData),"EX",3600);
+//   }
+//   fs.unlink(file.path,async(err)=>{
+//     if(err && err.code!=='EOENT'){
+//       throw new ApiError(500,"Failed to delete file")
+//     }
+//   })
+//     return res.status(200).json(new ApiResponse(200,`Successfully delete file`))
+// })
+
+export const deleteFiles = asyncHandler(async (req, res) => {
+  const { fileId } = req.params;
+
+  if (!fileId) {
+    throw new ApiError(400, "File ID is required");
+  }
+
+  const file = await prisma.file.findUnique({
+    where: { id: fileId },
+  });
+
   if (!file) {
     throw new ApiError(404, `File with ID ${fileId} not found`);
   }
 
-  if (!file.path.startsWith(BASE_UPLOAD_DIR)) {
+  const absolutePath = path.resolve(file.path);
+  if (!absolutePath.startsWith(BASE_UPLOAD_DIR)) {
     throw new ApiError(400, "Invalid file path");
   }
 
-  return res.download(file.path, file.originalName);
-});
-
-export const deleteFiles = asyncHandler(async(req,res)=>{
-  const {fileId} = await req.params;
-  if(!fileId){
-    throw new ApiError(400,`file Id is required`);
-  }
-  const file = await prisma.file.findUnique({
-    where:{
-      id:fileId
-    },
-  })
-  if(!file){
-    throw new ApiError(404,`File with id ${fileId} not found`);
-  }
   const deletedFile = await prisma.file.delete({
-    where:{
-      id:fileId
-    }
-  })
-  const key = `category:${deletedFile.categoryId}`
-  const data = await redis.get(key);
-  if(data){
-    const parsedData = JSON.parse(data);
-    parsedData.noOfFiles = parsedData.noOfFiles - 1;
-    const newFile = parsedData.CategoryData.file.filter((f)=>f.id!==fileId);
-    parsedData.CategoryData.file = newFile;
-    await redis.set(key,JSON.stringify(parsedData),"EX",3600);
+    where: { id: fileId },
+  });
+
+  // 🧹 Update Redis Cache
+  const key = `category:${deletedFile.categoryId}`;
+  const cachedData = await redis.get(key);
+
+  if (cachedData) {
+    const parsedData = JSON.parse(cachedData);
+    parsedData.noOfFiles = Math.max(0, parsedData.noOfFiles - 1);
+    parsedData.CategoryData.file = parsedData.CategoryData.file.filter(
+      (f) => f.id !== fileId
+    );
+    await redis.set(key, JSON.stringify(parsedData), "EX", 3600);
   }
-  fs.unlink(file.path,async(err)=>{
-    if(err && err.code!=='EOENT'){
-      throw new ApiError(500,"Failed to delete file")
+
+  // 🗑️ Remove file from disk
+  try {
+    await fs.unlink(absolutePath);
+  } catch (err) {
+    // ENOENT = file not found
+    if (err.code !== "ENOENT") {
+      console.error("Failed to delete file from disk:", err.message);
+      throw new ApiError(500, "Failed to delete file from disk");
     }
-  })
-    return res.status(200).json(new ApiResponse(200,`Successfully delete file`))
-})
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, `Successfully deleted file`, { fileId }));
+});
 
 export const filter = asyncHandler(async (req, res) => {
   const id = req.params.id || null;
