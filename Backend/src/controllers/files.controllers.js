@@ -8,6 +8,7 @@ import prisma from '../db/index.js';
 import { getAllChildren, getCategoryPath } from '../utils/getCategoryPath.js';
 import { redis } from '../utils/cache.js';
 import { updateCacheFile } from '../utils/cache.js';
+const BASE_UPLOAD_DIR = path.resolve("public/uploads");
 export const fileUpload = asyncHandler(async (req, res) => {
   const files = req.files;
   let metadata;
@@ -32,8 +33,8 @@ export const fileUpload = asyncHandler(async (req, res) => {
   }
 
   const relativePath = await getCategoryPath(categoryId);
-  const uploadDir = path.resolve("/Users/harshalrawal/Desktop/Uploads", relativePath);
-  // const uploadDir = path.resolve("public/uploads", relativePath);
+  //const uploadDir = path.resolve("/Users/harshalrawal/Desktop/Uploads", relativePath);
+   const uploadDir = path.resolve("public/uploads", relativePath);
   await fs.mkdir(uploadDir, { recursive: true });
 
   const savedFiles = [];
@@ -116,39 +117,88 @@ export const fileUpload = asyncHandler(async (req, res) => {
 
 
 
-export const serve = asyncHandler(async (req,res)=>{
-   const {fileId}  = req.params;
-   const file = await prisma.file.findUnique({
-    where:{
-      id:fileId
-    },
-    select:{
-      path:true
-    }
-   })
-   console.log(`filePath =  ${file.path}`)
-   res.sendFile(file.path)
-})
+// export const serve = asyncHandler(async (req,res)=>{
+//    const {fileId}  = req.params;
+//    const file = await prisma.file.findUnique({
+//     where:{
+//       id:fileId
+//     },
+//     select:{
+//       path:true
+//     }
+//    })
+//    console.log(`filePath =  ${file.path}`)
+//    res.sendFile(file.path)
+// })
 
-export const download  = asyncHandler(async(req,res)=>{
-  const {fileId} = req.params;
-  if(!fileId){
-    throw new ApiError(400,"File Id is required");
+
+
+
+export const serve = asyncHandler(async (req, res) => {
+  const { fileId } = req.params;
+
+  const file = await prisma.file.findUnique({
+    where: { id: fileId },
+    select: { path: true },
+  });
+
+  if (!file) {
+    throw new ApiError(404, `File with ID ${fileId} not found`);
   }
-  const file   = await prisma.file.findUnique({
-    where:{
-      id:fileId
+
+  // Security: Ensure the file path is within the uploads directory
+  if (!file.path.startsWith(BASE_UPLOAD_DIR)) {
+    throw new ApiError(400, "Invalid file path");
+  }
+
+  return res.sendFile(file.path);
+});
+
+// export const download  = asyncHandler(async(req,res)=>{
+//   const {fileId} = req.params;
+//   if(!fileId){
+//     throw new ApiError(400,"File Id is required");
+//   }
+//   const file   = await prisma.file.findUnique({
+//     where:{
+//       id:fileId
+//     },
+//     select:{
+//       path:true,
+//       originalName:true
+//     }
+//   })
+//   if(!file){
+//     throw new ApiError(404,`File with id ${fileId} not found`);
+//   }
+//   return res.download(file.path,file.originalName);
+// })
+
+export const download = asyncHandler(async (req, res) => {
+  const { fileId } = req.params;
+
+  if (!fileId) {
+    throw new ApiError(400, "File ID is required");
+  }
+
+  const file = await prisma.file.findUnique({
+    where: { id: fileId },
+    select: {
+      path: true,
+      originalName: true,
     },
-    select:{
-      path:true,
-      originalName:true
-    }
-  })
-  if(!file){
-    throw new ApiError(404,`File with id ${fileId} not found`);
+  });
+
+  if (!file) {
+    throw new ApiError(404, `File with ID ${fileId} not found`);
   }
-  return res.download(file.path,file.originalName);
-})
+
+  if (!file.path.startsWith(BASE_UPLOAD_DIR)) {
+    throw new ApiError(400, "Invalid file path");
+  }
+
+  return res.download(file.path, file.originalName);
+});
 
 export const deleteFiles = asyncHandler(async(req,res)=>{
   const {fileId} = await req.params;

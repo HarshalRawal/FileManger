@@ -38,10 +38,28 @@ const fileFilter = (req, file, cb) => {
     }
   };
 
-export const upload = multer({
-    storage:memoryStorage(),
-    fileFilter:fileFilter,
-    limits:{
-        fieldSize: 5 * 1024 * 1024
-    }
-});  
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, "public/uploads"); // This should match the Docker volume
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    },
+  });
+  
+  // ✅ Export the multer middleware
+  export const upload = multer({
+    storage,
+    fileFilter,
+    limits: {
+      fileSize: 5 * 1024 * 1024, // limit file size to 5MB
+    },
+  });
+// export const upload = multer({
+//     storage:memoryStorage(),
+//     fileFilter:fileFilter,
+//     limits:{
+//         fieldSize: 5 * 1024 * 1024
+//     }
+// });  
