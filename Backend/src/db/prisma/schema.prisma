@@ -21,7 +21,7 @@ model User {
   name String
   sapId String @unique
   password String
-  role     userRole @default(USER)
+  role     userRole @default(ADMIN)
   refreshToken  String?
   forgetPasswordToken String?
   createdAt DateTime @default(now())

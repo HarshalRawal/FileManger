@@ -9,6 +9,129 @@ import { getAllChildren, getCategoryPath } from '../utils/getCategoryPath.js';
 import { redis } from '../utils/cache.js';
 import { updateCacheFile } from '../utils/cache.js';
 const BASE_UPLOAD_DIR = path.resolve("public/uploads");
+// export const fileUpload = asyncHandler(async (req, res) => {
+//   const files = req.files;
+//   let metadata;
+
+//   if (!files || files.length === 0) {
+//     throw new ApiError(400, "No files uploaded.");
+//   }
+
+//   try {
+//     metadata = JSON.parse(req.body.metadata);
+//   } catch {
+//     throw new ApiError(400, "Invalid metadata JSON.");
+//   }
+
+//   if (!Array.isArray(metadata) || metadata.length !== files.length) {
+//     throw new ApiError(400, "Metadata count must match files count.");
+//   }
+
+//   const categoryId = req.params.categoryId;
+//   if (!categoryId) {
+//     throw new ApiError(400, "categoryId is required in URL path.");
+//   }
+
+//   const relativePath = await getCategoryPath(categoryId);
+//   //const uploadDir = path.resolve("/Users/harshalrawal/Desktop/Uploads", relativePath);
+//    const uploadDir = path.resolve("public/uploads", relativePath);
+//   await fs.mkdir(uploadDir, { recursive: true });
+
+//   const savedFiles = [];
+//   const tempFilePaths = [];
+
+//   try {
+//     for (let i = 0; i < files.length; i++) {
+//       const file = files[i];
+//       const meta = metadata[i];
+
+//       const ext = path.extname(file.originalname);
+//       const storedName = `${uuidv4()}${ext}`;
+//       const fullPath = path.join(uploadDir, storedName);
+
+//       // Save to disk
+//       await fs.writeFile(fullPath, file.buffer);
+//       tempFilePaths.push(fullPath);
+//       const savedFile = await prisma.file.create({
+//         data: {
+//           originalName: file.originalname,
+//           storedName,
+//           mimeType: file.mimetype,
+//           size: file.size.toString(),
+//           path: fullPath,
+//           categoryId,
+//           description: meta.description || null,
+//           tags: {
+//             create: (meta.tags || []).map((tagId) => ({
+//               tag: {
+//                 connect: { id: tagId },
+//               },
+//             })),
+//           },
+//         },
+//         include: {
+//           tags: {
+//             include:{
+//               tag:true
+//             }
+//           }, // return tags if needed
+//         },
+//       });
+//       savedFiles.push(savedFile);
+//     }
+//     let key;
+//     if(categoryId){
+//       key =  `category:${categoryId}`
+//       const data = await redis.get(key);
+//       if(!data) return;
+//       const parsedData = JSON.parse(data);
+//      // console.log(`Before:${JSON.stringify(parsedData.CategoryData.file)} \n`)
+//       parsedData.noOfFiles = parsedData.noOfFiles + savedFiles.length;
+//       parsedData.CategoryData.file.push(...savedFiles);
+//      // console.log(`File: ${JSON.stringify(parsedData.CategoryData.file)}`);
+//       await redis.set(key,JSON.stringify(parsedData),"EX",3600);
+//       const result = await redis.set(key, JSON.stringify(parsedData), "EX", 3600);
+//     }
+//     else{
+//         key = `rootCategories:data`;
+//         await redis.del(key);
+//     }
+//     return res.status(201).json(
+//       new ApiResponse(201, "Files uploaded successfully.", { files: savedFiles })
+//     );
+//   } catch (error) {
+//     // Rollback any written files
+//     await Promise.all(
+//       tempFilePaths.map(async (filePath) => {
+//         try {
+//           await fs.unlink(filePath);
+//         } catch (err) {
+//           console.error("Rollback failed on:", filePath, err.message);
+//         }
+//       })
+//     );
+
+//     throw new ApiError(500, `File upload failed: ${error.message}`);
+//   }
+// });
+
+
+
+// export const serve = asyncHandler(async (req,res)=>{
+//    const {fileId}  = req.params;
+//    const file = await prisma.file.findUnique({
+//     where:{
+//       id:fileId
+//     },
+//     select:{
+//       path:true
+//     }
+//    })
+//    console.log(`filePath =  ${file.path}`)
+//    res.sendFile(file.path)
+// })
+
+
 export const fileUpload = asyncHandler(async (req, res) => {
   const files = req.files;
   let metadata;
@@ -33,12 +156,10 @@ export const fileUpload = asyncHandler(async (req, res) => {
   }
 
   const relativePath = await getCategoryPath(categoryId);
-  //const uploadDir = path.resolve("/Users/harshalrawal/Desktop/Uploads", relativePath);
-   const uploadDir = path.resolve("public/uploads", relativePath);
+  const uploadDir = path.resolve("public/uploads", relativePath);
   await fs.mkdir(uploadDir, { recursive: true });
 
   const savedFiles = [];
-  const tempFilePaths = [];
 
   try {
     for (let i = 0; i < files.length; i++) {
@@ -46,18 +167,15 @@ export const fileUpload = asyncHandler(async (req, res) => {
       const meta = metadata[i];
 
       const ext = path.extname(file.originalname);
-      const storedName = `${uuidv4()}${ext}`;
-      const fullPath = path.join(uploadDir, storedName);
+      const storedName = file.filename;
+      const fullPath = file.path;
 
-      // Save to disk
-      await fs.writeFile(fullPath, file.buffer);
-      tempFilePaths.push(fullPath);
       const savedFile = await prisma.file.create({
         data: {
           originalName: file.originalname,
           storedName,
-          mimeType: file.mimetype,
-          size: file.size.toString(),
+          mimeType: file.mimetype || "application/octet-stream",
+          size: String(file.size),
           path: fullPath,
           categoryId,
           description: meta.description || null,
@@ -71,42 +189,40 @@ export const fileUpload = asyncHandler(async (req, res) => {
         },
         include: {
           tags: {
-            include:{
-              tag:true
-            }
-          }, // return tags if needed
+            include: { tag: true },
+          },
         },
       });
+
       savedFiles.push(savedFile);
     }
-    let key;
-    if(categoryId){
-      key =  `category:${categoryId}`
+
+    // 🔁 Redis cache update
+    const key = categoryId ? `category:${categoryId}` : "rootCategories:data";
+
+    if (categoryId) {
       const data = await redis.get(key);
-      if(!data) return;
-      const parsedData = JSON.parse(data);
-     // console.log(`Before:${JSON.stringify(parsedData.CategoryData.file)} \n`)
-      parsedData.noOfFiles = parsedData.noOfFiles + savedFiles.length;
-      parsedData.CategoryData.file.push(...savedFiles);
-     // console.log(`File: ${JSON.stringify(parsedData.CategoryData.file)}`);
-      await redis.set(key,JSON.stringify(parsedData),"EX",3600);
-      const result = await redis.set(key, JSON.stringify(parsedData), "EX", 3600);
+      if (data) {
+        const parsedData = JSON.parse(data);
+        parsedData.noOfFiles += savedFiles.length;
+        parsedData.CategoryData.file.push(...savedFiles);
+        await redis.set(key, JSON.stringify(parsedData), "EX", 3600);
+      }
+    } else {
+      await redis.del(key);
     }
-    else{
-        key = `rootCategories:data`;
-        await redis.del(key);
-    }
-    return res.status(201).json(
-      new ApiResponse(201, "Files uploaded successfully.", { files: savedFiles })
-    );
+
+    return res
+      .status(201)
+      .json(new ApiResponse(201, "Files uploaded successfully.", { files: savedFiles }));
   } catch (error) {
-    // Rollback any written files
+    // Rollback files from disk if DB fails
     await Promise.all(
-      tempFilePaths.map(async (filePath) => {
+      files.map(async (file) => {
         try {
-          await fs.unlink(filePath);
+          await fs.unlink(file.path);
         } catch (err) {
-          console.error("Rollback failed on:", filePath, err.message);
+          console.error("Failed to delete:", file.path, err.message);
         }
       })
     );
@@ -114,22 +230,6 @@ export const fileUpload = asyncHandler(async (req, res) => {
     throw new ApiError(500, `File upload failed: ${error.message}`);
   }
 });
-
-
-
-// export const serve = asyncHandler(async (req,res)=>{
-//    const {fileId}  = req.params;
-//    const file = await prisma.file.findUnique({
-//     where:{
-//       id:fileId
-//     },
-//     select:{
-//       path:true
-//     }
-//    })
-//    console.log(`filePath =  ${file.path}`)
-//    res.sendFile(file.path)
-// })
 
 
 
