@@ -168,7 +168,11 @@ export const fileUpload = asyncHandler(async (req, res) => {
 
       const ext = path.extname(file.originalname);
       const storedName = file.filename;
-      const fullPath = file.path;
+      const originalPath = file.path;
+      const newPath = path.join(uploadDir, storedName);
+
+      // Move file to category subfolder
+      await fs.rename(originalPath, newPath);
 
       const savedFile = await prisma.file.create({
         data: {
